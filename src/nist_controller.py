@@ -5,12 +5,15 @@ from tkinter import *
 import requests
 import math
 import random
+# *** use python json library
 
 
 BANDWIDTH = 10 ** 5    # *** could just set to some number, and subtract quality from it every TIME_DIF?
+                       # also have parameter link bit rate (bits/s), sets upper bound for bitrate
+                       # (which opus changes depending on packet loss)
 TIME_DIF = 1    # how often audio quality can be changed
 START_QUALITY = 10    # starting quality
-PROTOCOL_DOMAIN_PORT = "http://nist.ryngle.net:3001"
+PROTOCOL_DOMAIN_PORT = "http://nist.ryngle.net:3333"
 CODEC = "opus"
 
 """
@@ -32,8 +35,8 @@ Application:
     ~ "tx_error":[0,100], |101|, packet corruption rate (%)
 
     # use one, tx_delay
-    ~ "tx_delay":[0,100] # transmit delay
-    ~ "rx_delay":0 [0,100] # receive delay
+    ~ "tx_delay":[0,2000] # transmit delay (ms)
+    ~ "rx_delay":0 [0,2000] # receive delay (ms)
 """
 
 
@@ -66,14 +69,14 @@ def opus_json(quality, dif, init):
         # change all quality related parameters
 
         # tx_loss
-        loss_and_corrupt = 50 - (10 * math.floor(quality / 2))    # function mapping to values in excel
+        loss_and_corrupt = 25 - (5 * math.floor(quality / 2))    # function mapping to values in excel
         json_data += "\"tx_loss\":" + str(loss_and_corrupt) + ","
 
         # tx_error
         json_data += "\"tx_error\":" + str(loss_and_corrupt) + ","
 
         # tx_delay
-        json_data += "\"tx_delay\":" + str((10 - quality) * 10) + "," # *** Jan said 500ms will become noticeable, but max = 100?
+        json_data += "\"tx_delay\":" + str((10 - quality) * 30) + "," # 300 ms -> stuttering
 
     # always alter mic_level and speaker_level
     u = random.random()    # sample random number from 0-1 uniform distribution
@@ -130,9 +133,9 @@ if __name__ == "__main__":
         root.update()
         if var_prev != var.get():
             # change quality
-            opus_json(var, True, False)
+            opus_json(var.get(), True, False)
             print(str(var_prev) + " -> " + str(var.get()))
             var_prev = var.get()
-        elif var != 10:
+        elif var.get() != 10:
             # change only mic_level and speaker_level since quality not perfect
-            opus_json(var, False, False)
+            opus_json(var.get(), False, False)
