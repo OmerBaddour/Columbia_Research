@@ -4,8 +4,11 @@ import time
 from tkinter import *
 import requests
 import random
+import math
 import json
-# *** use python json library
+# *** use python json library, json.loads() function
+# netstat -lnp | tcp, find port number of node application
+# in janakj directory, ut, file api.mj explains format expectations of parameters etc
 
 
 BANDWIDTH = 10 ** 5    # *** could just set to some number, and subtract quality from it every TIME_DIF?
@@ -13,7 +16,7 @@ BANDWIDTH = 10 ** 5    # *** could just set to some number, and subtract quality
                        # (which opus changes depending on packet loss)
 TIME_DIF = 2    # how often audio quality can be changed
 START_QUALITY = 10    # starting quality
-PROTOCOL_DOMAIN_PORT = "http://nist.ryngle.net:3333"
+PROTOCOL_DOMAIN_PORT = "http://nist.ryngle.net:80"
 CODEC = "opus"
 
 """
@@ -69,7 +72,7 @@ def opus_json(quality, dif, init):
         # change all quality related parameters
 
         # tx_loss
-        loss_and_corrupt = 50 #25 - (5 * math.floor(2 * quality))    # function mapping to values in excel # *** quality / 2 removed
+        loss_and_corrupt = 5 * math.ceil((10-quality)/2)    # function mapping to values in excel # *** quality / 2 removed
         json_data += "\"tx_loss\":" + str(loss_and_corrupt) + ","
 
         # tx_error
@@ -81,7 +84,7 @@ def opus_json(quality, dif, init):
     # always alter mic_level and speaker_level
     u = random.random()    # sample random number from 0-1 uniform distribution
     p = quality * 0.1
-    """
+    #"""
     if u <= p:
         json_data += "\"mic_level\":100,"
         json_data += "\"speaker_level\":100,"
@@ -89,13 +92,18 @@ def opus_json(quality, dif, init):
         level = random.randint(quality * 10, 100)
         json_data += "\"mic_level\":" + str(level) + ","
         json_data += "\"speaker_level\":" + str(level) + ","
-    """
+    #"""
 
     json_data = json_data[0:-1] + "}"    # removes last comma
 
     # POST desired settings
-    r1 = requests.post(url=PROTOCOL_DOMAIN_PORT+"/proxy/User-Terminal-[ut1-92cb01]._ut._tcp/api/settings", data=json.loads(json_data))
-    r2 = requests.post(url=PROTOCOL_DOMAIN_PORT+"/proxy/User-Terminal-[ut2-5dd34e]._ut._tcp/api/settings", data=json.loads(json_data))
+    headers = {"Content-Type": "application/json"}
+    r1 = requests.post(url=PROTOCOL_DOMAIN_PORT+"/proxy/User-Terminal-[ut1-92cb01]._ut._tcp/api/settings",
+                       data=json_data,
+                       headers=headers)
+    r2 = requests.post(url=PROTOCOL_DOMAIN_PORT+"/proxy/User-Terminal-[ut2-5dd34e]._ut._tcp/api/settings",
+                       data=json_data,
+                       headers=headers)
 
     # cause desired settings to be activated
     r1_activate = requests.post(url=PROTOCOL_DOMAIN_PORT+"/proxy/User-Terminal-[ut1-92cb01]._ut._tcp/api/settings/apply")
