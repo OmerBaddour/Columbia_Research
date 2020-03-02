@@ -3,15 +3,15 @@
 import time
 from tkinter import *
 import requests
-import math
 import random
+import json
 # *** use python json library
 
 
 BANDWIDTH = 10 ** 5    # *** could just set to some number, and subtract quality from it every TIME_DIF?
                        # also have parameter link bit rate (bits/s), sets upper bound for bitrate
                        # (which opus changes depending on packet loss)
-TIME_DIF = 1    # how often audio quality can be changed
+TIME_DIF = 2    # how often audio quality can be changed
 START_QUALITY = 10    # starting quality
 PROTOCOL_DOMAIN_PORT = "http://nist.ryngle.net:3333"
 CODEC = "opus"
@@ -69,18 +69,19 @@ def opus_json(quality, dif, init):
         # change all quality related parameters
 
         # tx_loss
-        loss_and_corrupt = 25 - (5 * math.floor(quality / 2))    # function mapping to values in excel
+        loss_and_corrupt = 50 #25 - (5 * math.floor(2 * quality))    # function mapping to values in excel # *** quality / 2 removed
         json_data += "\"tx_loss\":" + str(loss_and_corrupt) + ","
 
         # tx_error
         json_data += "\"tx_error\":" + str(loss_and_corrupt) + ","
 
         # tx_delay
-        json_data += "\"tx_delay\":" + str((10 - quality) * 30) + "," # 300 ms -> stuttering
+        json_data += "\"tx_delay\":" + str((10 - quality) * 20) + "," # 300 ms -> stuttering # *** (10 - quality) * 30 changed to * 20
 
     # always alter mic_level and speaker_level
     u = random.random()    # sample random number from 0-1 uniform distribution
     p = quality * 0.1
+    """
     if u <= p:
         json_data += "\"mic_level\":100,"
         json_data += "\"speaker_level\":100,"
@@ -88,19 +89,21 @@ def opus_json(quality, dif, init):
         level = random.randint(quality * 10, 100)
         json_data += "\"mic_level\":" + str(level) + ","
         json_data += "\"speaker_level\":" + str(level) + ","
+    """
 
     json_data = json_data[0:-1] + "}"    # removes last comma
 
     # POST desired settings
-    r1 = requests.post(url=PROTOCOL_DOMAIN_PORT+"/proxy/User-Terminal-[ut1-92cb01]._ut._tcp/api/settings", data=json_data)
-    r2 = requests.post(url=PROTOCOL_DOMAIN_PORT+"/proxy/User-Terminal-[ut2-5dd34e]._ut._tcp/api/settings", data=json_data)
+    r1 = requests.post(url=PROTOCOL_DOMAIN_PORT+"/proxy/User-Terminal-[ut1-92cb01]._ut._tcp/api/settings", data=json.loads(json_data))
+    r2 = requests.post(url=PROTOCOL_DOMAIN_PORT+"/proxy/User-Terminal-[ut2-5dd34e]._ut._tcp/api/settings", data=json.loads(json_data))
 
     # cause desired settings to be activated
-    r1_activate = requests.post(url=PROTOCOL_DOMAIN_PORT+"/proxy/User-Terminal-[ut1-92cb01]._ut._tcp/api/settings")
-    r2_activate = requests.post(url=PROTOCOL_DOMAIN_PORT+"/proxy/User-Terminal-[ut2-5dd34e]._ut._tcp/api/settings")
+    r1_activate = requests.post(url=PROTOCOL_DOMAIN_PORT+"/proxy/User-Terminal-[ut1-92cb01]._ut._tcp/api/settings/apply")
+    r2_activate = requests.post(url=PROTOCOL_DOMAIN_PORT+"/proxy/User-Terminal-[ut2-5dd34e]._ut._tcp/api/settings/apply")
 
     if r1_activate.status_code == 200 and r2_activate.status_code == 200:
         print("Update to quality " + str(quality) + " successful.")
+        print(json_data)
     else:
         print("Update to quality " + str(quality) + " unsuccessful." +
               "Request 1 status code: " + str(r1_activate.status_code) +
@@ -122,7 +125,7 @@ if __name__ == "__main__":
     scale.pack(anchor=CENTER)
 
     while rem_bandwidth > 0:
-        rem_bandwidth -= var.get()  # *** current: quality, want: bandwidth of quality
+        #rem_bandwidth -= var.get()  # *** current: quality, want: bandwidth of quality
         t1 = time.time()
         t2 = t1
 
